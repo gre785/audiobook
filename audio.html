@@ -1,4 +1,3 @@
-<p id="trackLabel">1.mp3</p>
 
 <audio id="player" controls>
   <source id="audioSource"
@@ -6,14 +5,13 @@
           type="audio/mpeg">
 </audio>
 
-<br><br>
 
-<button onclick="playNext()">Next ▶</button>
-
-<br><br>
+<p id="trackLabel">1.mp3 </p>
+<button onclick="playPrev()"> ◀ </button>
+<button onclick="playNext()"> ▶ </button>
 
 <label>
-  Jump to track:
+  Jump to:
   <input type="number" id="jumpInput" min="1" max="702" placeholder="1–702">
 </label>
 <button onclick="jumpTo()">Go</button>
@@ -48,6 +46,13 @@
     };
   }
 
+  function playPrev() {
+    if (index > START) {
+      loadTrack(index - 1);
+      player.play();
+    }
+  }
+
   function playNext() {
     if (index < END) {
       loadTrack(index + 1);
@@ -74,7 +79,6 @@
   // Auto-play next track when one ends
   player.addEventListener("ended", () => {
     localStorage.setItem(STORAGE_KEY_TIME, 0);
-    playNext();
   });
 
   // Initial load (resume last session)
