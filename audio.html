@@ -1,0 +1,82 @@
+<p id="trackLabel">1.mp3</p>
+
+<audio id="player" controls>
+  <source id="audioSource"
+          src="https://raw.githubusercontent.com/gre785/audiobook/main/zfs/1.mp3"
+          type="audio/mpeg">
+</audio>
+
+<br><br>
+
+<button onclick="playNext()">Next ▶</button>
+
+<br><br>
+
+<label>
+  Jump to track:
+  <input type="number" id="jumpInput" min="1" max="702" placeholder="1–702">
+</label>
+<button onclick="jumpTo()">Go</button>
+
+<script>
+  const START = 1;
+  const END = 702;
+  const STORAGE_KEY_TRACK = "audiobook_last_track";
+  const STORAGE_KEY_TIME  = "audiobook_last_time";
+
+  const baseUrl = "https://raw.githubusercontent.com/gre785/audiobook/main/zfs/";
+  const player = document.getElementById("player");
+  const source = document.getElementById("audioSource");
+  const label = document.getElementById("trackLabel");
+  const jumpInput = document.getElementById("jumpInput");
+
+  // Load last saved state
+  let index = parseInt(localStorage.getItem(STORAGE_KEY_TRACK), 10) || START;
+  let savedTime = parseFloat(localStorage.getItem(STORAGE_KEY_TIME)) || 0;
+
+  function loadTrack(i, time = 0) {
+    index = i;
+    source.src = baseUrl + index + ".mp3";
+    label.textContent = index + ".mp3";
+    player.load();
+
+    // Restore playback position once metadata is loaded
+    player.onloadedmetadata = () => {
+      if (time > 0 && time < player.duration) {
+        player.currentTime = time;
+      }
+    };
+  }
+
+  function playNext() {
+    if (index < END) {
+      loadTrack(index + 1);
+      player.play();
+    }
+  }
+
+  function jumpTo() {
+    const value = parseInt(jumpInput.value, 10);
+    if (value >= START && value <= END) {
+      loadTrack(value);
+      player.play();
+    } else {
+      alert("Please enter a number between 1 and 702");
+    }
+  }
+
+  // Save progress periodically
+  player.addEventListener("timeupdate", () => {
+    localStorage.setItem(STORAGE_KEY_TRACK, index);
+    localStorage.setItem(STORAGE_KEY_TIME, player.currentTime);
+  });
+
+  // Auto-play next track when one ends
+  player.addEventListener("ended", () => {
+    localStorage.setItem(STORAGE_KEY_TIME, 0);
+    playNext();
+  });
+
+  // Initial load (resume last session)
+  loadTrack(index, savedTime);
+</script>
