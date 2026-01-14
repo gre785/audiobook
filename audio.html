@@ -81,6 +81,9 @@
     localStorage.setItem(STORAGE_KEY_TIME, 0);
   });
 
+  player.addEventListener("volumechange", () => {
+    localStorage.setItem("volume", player.volume);
+  });
   // Initial load (resume last session)
   loadTrack(index, savedTime);
 </script>
