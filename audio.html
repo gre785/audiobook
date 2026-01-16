@@ -37,6 +37,7 @@
     source.src = baseUrl + index + ".mp3";
     label.textContent = index + ".mp3";
     player.load();
+    player.volume = 0.25;
 
     // Restore playback position once metadata is loaded
     player.onloadedmetadata = () => {
