@@ -24,9 +24,15 @@
     }
 
     /* Keep hover the same (no flicker) */
-    #autoplayToggle:hover {
+    #autoplayToggle {
       background-color: #198754;
       border-color: #198754;
+      color: #fff;
+    }
+
+    #autoplayToggle.off {
+      background-color: #6c757d;
+      border-color: #6c757d;
       color: #fff;
     }
 
@@ -96,7 +102,7 @@
           id="autoplayToggle"
           class="btn btn-outline-success btn-lg"
           onclick="toggleAutoplay()">
-          Auto Next: ON
+          ON
         </button>
       </div>
 
@@ -134,10 +140,15 @@
   const autoplayBtn = document.getElementById("autoplayToggle");
 
   function updateAutoplayButton() {
-    autoplayBtn.textContent = `Auto Next: ${autoplayNext ? "ON" : "OFF"}`;
-    autoplayBtn.className =
-      "btn btn-lg " +
-      (autoplayNext ? "btn-outline-success" : "btn-outline-secondary");
+    autoplayBtn.textContent = autoplayNext ? "ON" : "OFF";
+    // Toggle outline class (green vs grey)
+    autoplayBtn.classList.toggle("btn-outline-success", autoplayNext);
+    autoplayBtn.classList.toggle("btn-outline-secondary", !autoplayNext);
+    // Toggle an 'off' marker class which the CSS uses to set background to grey
+    autoplayBtn.classList.toggle("off", !autoplayNext);
+    // Ensure core btn classes are present
+    if (!autoplayBtn.classList.contains("btn")) autoplayBtn.classList.add("btn");
+    if (!autoplayBtn.classList.contains("btn-lg")) autoplayBtn.classList.add("btn-lg");
   }
 
   function toggleAutoplay() {
@@ -213,5 +224,69 @@
     localStorage.setItem("volume", player.volume);
   });
   // Initial load (resume last session)
+  // Apply button state styling then load last track
+  updateAutoplayButton();
   loadTrack(index, savedTime);
+
+  // Pause player when the system's audio output devices change.
+  // Uses the MediaDevices API 'devicechange' event where supported.
+  let _prevAudioOutputIds = [];
+  async function _getAudioOutputIds() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      return devices
+        .filter(d => d.kind === 'audiooutput')
+        .map(d => d.deviceId)
+        .sort();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  (async () => {
+    _prevAudioOutputIds = await _getAudioOutputIds();
+  })();
+
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.addEventListener === 'function') {
+    navigator.mediaDevices.addEventListener('devicechange', async () => {
+      const newIds = await _getAudioOutputIds();
+      // If the set of audio output devices changed, pause playback.
+      if (JSON.stringify(newIds) !== JSON.stringify(_prevAudioOutputIds)) {
+        _prevAudioOutputIds = newIds;
+        if (!player.paused) {
+          player.pause();
+          console.log('Audio output device changed — player paused');
+        }
+      }
+    });
+  }
+
+  // Polling fallback: some browsers don't emit 'devicechange' for audiooutput.
+  // Periodically enumerate devices and compare IDs; pause when changed.
+  let _devicePollInterval = null;
+  function startDevicePoll() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    // Start poll only if not already running
+    if (_devicePollInterval) return;
+    _devicePollInterval = setInterval(async () => {
+      const newIds = await _getAudioOutputIds();
+      if (JSON.stringify(newIds) !== JSON.stringify(_prevAudioOutputIds)) {
+        _prevAudioOutputIds = newIds;
+        if (!player.paused) {
+          player.pause();
+          console.log('Audio output device changed (poll) — player paused');
+        }
+      }
+    }, 2000);
+  }
+  startDevicePoll();
+  window.addEventListener('beforeunload', () => {
+    if (_devicePollInterval) clearInterval(_devicePollInterval);
+  });
+
+  // If MediaDevices APIs are not available, inform in console (use local server/HTTPS for full support).
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+    console.warn('navigator.mediaDevices.enumerateDevices not available. Device-change detection may not work. Serve file over HTTPS or localhost to enable device APIs.');
+  }
 </script>
